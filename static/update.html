@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>CineMaker 更新</title>
+</head>
+<body style="margin:0;background:#0b0d12;color:#e7c07a;font-family:sans-serif;padding:28px">
+  <h1>CINEMAKER 更新中</h1>
+  <p id="msg">正在同步 GitHub…</p>
+  <div style="height:10px;background:#1a1d27;border-radius:99px;overflow:hidden">
+    <div id="fill" style="height:100%;width:0;background:#e7c07a"></div>
+  </div>
+  <script>
+    async function tick() {
+      try {
+        const d = await (await fetch("/api/update/status")).json();
+        document.getElementById("msg").textContent = d.message || "";
+        document.getElementById("fill").style.width = (d.percent || 0) + "%";
+      } catch (e) {}
+      setTimeout(tick, 400);
+    }
+    tick();
+  </script>
+</body>
+</html>
