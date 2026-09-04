@@ -1,0 +1,12 @@
+{
+  "id": "view.three",
+  "name": "Three Viewport",
+  "name_zh": "三维视口",
+  "version": "1.1.0",
+  "entry": "plugin.js",
+  "author": "Axiox Media",
+  "official": true,
+  "category": "viewport",
+  "subcategory": "stage",
+  "summary": "Built-in GLB/glTF/FBX viewport, studio lights, materials, clips."
+}
