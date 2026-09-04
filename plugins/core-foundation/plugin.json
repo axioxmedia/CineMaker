@@ -1,0 +1,34 @@
+{
+  "id": "core.foundation",
+  "name": "Foundation",
+  "name_zh": "基础演出",
+  "version": "1.0.0",
+  "entry": "plugin.js",
+  "author": "Axiox Media",
+  "author_zh": "安溯媒体",
+  "homepage": "https://axiox.media",
+  "official": true,
+  "category": "blueprint",
+  "subcategory": "flow",
+  "summary": "Dialogue lines, waits, fades, audio, loops, arrays and timers for staging a scene.",
+  "summary_zh": "对白、等待、转场、音效、序列、循环、数组和计时，用来搭一场戏的节奏。",
+  "contributes": {
+    "nodes": [
+      "story.line",
+      "story.wait",
+      "story.fade",
+      "audio.bgm",
+      "audio.sfx",
+      "story.checkpoint",
+      "meta.comment",
+      "meta.reroute",
+      "flow.sequence",
+      "flow.forLoop",
+      "array.make",
+      "array.get",
+      "array.length",
+      "flow.tick",
+      "flow.timer"
+    ]
+  }
+}

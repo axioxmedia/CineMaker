@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CineMaker</title>
+  <link rel="icon" href="/brand/logo.png" />
+  <link rel="stylesheet" href="/assets/vendor/fontawesome/all.min.css" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/assets/vendor/three/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body class="aio-app axiox-shell">
+  <div id="bootGate" class="boot-gate" hidden></div>
+  <header class="chrome">
+    <div class="menubar">
+      <button type="button" class="icon-btn" id="btnEditorSet" title="编辑器设定"><i class="fa-solid fa-sliders"></i></button>
+      <button type="button" class="icon-btn" id="btnProjSet" title="项目设定"><i class="fa-solid fa-gear"></i></button>
+      <div id="projName" class="proj-name">未命名</div>
+    </div>
+    <div class="topbar">
+    <img class="mark" src="/brand/logo.png" alt="" />
+    <select id="levelPick" class="level-pick" title="场景"></select>
+    <button type="button" class="icon-btn" id="btnAddLevel" title="新场景"><i class="fa-solid fa-layer-group"></i></button>
+    <button type="button" class="icon-btn" id="btnGameInst" title="全局实例"><i class="fa-solid fa-database"></i></button>
+    <button type="button" class="icon-btn" id="btnGameMode" title="游戏模式"><i class="fa-solid fa-gamepad"></i></button>
+    <button type="button" class="icon-btn" id="btnLibrary" title="函数库"><i class="fa-solid fa-book"></i></button>
+    <nav class="modes" data-slot="modes">
+      <button class="mode on" data-mode="graph" id="modeGraph" title="蓝图"><i class="fa-solid fa-diagram-project"></i></button>
+      <button class="mode" data-mode="assets" id="modeAssets" title="资产"><i class="fa-solid fa-folder-open"></i></button>
+      <button type="button" id="modePlugins" title="插件"><i class="fa-solid fa-puzzle-piece"></i></button>
+    </nav>
+    <div class="top-actions" data-slot="top-actions">
+      <button type="button" id="btnSave" title="保存"><i class="fa-solid fa-floppy-disk"></i></button>
+      <button type="button" id="btnFit" title="适配画布"><i class="fa-solid fa-expand"></i></button>
+      <button type="button" class="icon-btn primary" id="btnExport" title="导出游戏"><i class="fa-solid fa-box"></i></button>
+      <button type="button" class="icon-btn" id="btnNewProj" title="新建工程"><i class="fa-solid fa-file-circle-plus"></i></button>
+      <button type="button" class="icon-btn" id="btnOpenProj" title="打开工程"><i class="fa-solid fa-folder"></i></button>
+      <div class="lang">
+        <button type="button" data-lang="zh">中文</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+    </div>
+    </div>
+    <div class="work-tabs" id="workTabs"></div>
+  </header>
+
+  <main id="viewGraph" class="workspace">
+    <aside class="rail" id="nodeRail"></aside>
+    <div class="split" data-split="left"></div>
+    <section class="stage">
+      <canvas id="graphCanvas"></canvas>
+      <div id="graphHint" class="hint"></div>
+    </section>
+    <div class="split" data-split="right"></div>
+    <aside class="inspector" id="inspector">
+      <div class="play-dock">
+        <div class="play-head">
+          <h2 id="playTitle"></h2>
+          <button type="button" class="icon-btn" id="btnPreviewPlay" title="预览"><i class="fa-solid fa-play"></i></button>
+          <button type="button" class="icon-btn danger" id="btnPreviewStop" title="停止"><i class="fa-solid fa-stop"></i></button>
+          <button type="button" class="icon-btn primary" id="btnPie" title="PIE"><i class="fa-solid fa-gamepad"></i></button>
+        </div>
+        <div class="play-stage" id="dockStage">
+          <video id="dockVideo" playsinline></video>
+          <div class="play-fade" id="dockFade"></div>
+          <div class="play-speaker" id="dockSpeaker"></div>
+          <div class="play-text" id="dockText"></div>
+          <div class="play-choices" id="dockChoices"></div>
+          <audio id="dockBgm"></audio>
+          <audio id="dockSfx"></audio>
+        </div>
+      </div>
+      <h2 id="inspTitle"></h2>
+      <div id="inspBody"></div>
+    </aside>
+  </main>
+
+  <main id="viewAssets" class="workspace drive" hidden>
+    <aside class="rail drive-tree">
+      <button type="button" data-drive-view="root" class="tree on" id="treeRoot" title="库"><i class="fa-solid fa-hard-drive"></i></button>
+      <button type="button" data-drive-view="starred" class="tree" id="treeStar" title="星标"><i class="fa-solid fa-star"></i></button>
+      <button type="button" data-drive-view="trash" class="tree" id="treeTrash" title="回收站"><i class="fa-solid fa-trash"></i></button>
+      <div id="folderList"></div>
+      <footer class="drive-foot">
+        <span id="assetCounts"></span>
+        <div class="space-bar"><span id="spaceBar"></span></div>
+        <span id="spaceLabel"></span>
+      </footer>
+    </aside>
+    <div class="split" data-split="aleft"></div>
+    <section class="stage drive-grid-wrap">
+      <div class="drive-toolbar">
+        <button type="button" id="btnUp" title="返回"><i class="fa-solid fa-arrow-left"></i></button>
+        <button type="button" id="btnNewFolder" title="新建文件夹"><i class="fa-solid fa-folder-plus"></i></button>
+        <label class="upload gold-upload" title="上传"><i class="fa-solid fa-upload"></i> 上传<input type="file" id="filePick" multiple accept="video/*,image/*,audio/*" /></label>
+        <select id="assetFilter">
+          <option value="">全部</option>
+          <option value="video">视频</option>
+          <option value="image">图片</option>
+          <option value="audio">音频</option>
+          <option value="folder">文件夹</option>
+        </select>
+        <input id="assetSearch" class="field-input" type="search" placeholder="搜索资产" />
+      </div>
+      <div id="driveGrid" class="drive-grid"></div>
+    </section>
+    <div class="split" data-split="aright"></div>
+    <aside class="inspector" id="assetInspector">
+      <h2 id="assetTitle"></h2>
+      <div id="assetMeta"></div>
+      <div id="assetPreview"></div>
+    </aside>
+  </main>
+
+  <div id="pluginModal" class="modal-bg" hidden>
+    <div class="modal plug-full" role="dialog">
+      <div class="modal-head">
+        <h3 id="pluginModalTitle"></h3>
+        <div>
+          <button type="button" id="btnImportPlug" title="导入插件"><i class="fa-solid fa-file-import"></i></button>
+          <input type="file" id="plugZip" accept=".zip,application/zip" hidden />
+          <button type="button" id="btnSdk" title="SDK"><i class="fa-solid fa-download"></i></button>
+          <button type="button" id="btnClosePlugins" title="关闭"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <p class="muted" id="pluginHelp"></p>
+      <div class="plug-layout">
+        <aside class="plug-nav" id="plugNav"></aside>
+        <section class="plugin-list" id="pluginList"></section>
+      </div>
+    </div>
+  </div>
+
+  <div id="pieModal" class="modal-bg" hidden>
+    <div class="modal pie" id="pieWin" role="dialog">
+      <div class="modal-head pie-drag">
+        <h3 id="pieTitle">PIE</h3>
+        <button type="button" class="icon-btn" id="btnClosePie" title="关闭"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="play-stage pie-stage" id="pieStage">
+        <video id="pieVideo" playsinline></video>
+        <div class="play-fade" id="pieFade"></div>
+        <div class="play-speaker" id="pieSpeaker"></div>
+        <div class="play-text" id="pieText"></div>
+        <div class="play-choices" id="pieChoices"></div>
+        <audio id="pieBgm"></audio>
+        <audio id="pieSfx"></audio>
+      </div>
+      <div class="pie-resizer" id="pieResizer"></div>
+    </div>
+  </div>
+
+  <div id="bottomDock" class="bottom-dock">
+    <button type="button" data-log="output" id="btnLogOutput">输出日志</button>
+    <button type="button" data-log="message" id="btnLogMsg">消息日志</button>
+    <button type="button" data-log="loc" id="btnLogLoc">本地化面板</button>
+    <button type="button" data-log="console" id="btnLogConsole">控制台</button>
+  </div>
+  <div id="logPanel" class="log-panel" hidden>
+    <div class="log-head"><strong id="logTitle"></strong><button type="button" id="btnCloseLog">×</button></div>
+    <pre id="logBody"></pre>
+    <div id="consoleRow" hidden>
+      <input id="consoleIn" class="field-input" placeholder="输入指令，如 help" autocomplete="off" />
+      <div id="consoleHint" class="console-hint" hidden></div>
+    </div>
+  </div>
+  <div id="locModal" class="modal-bg" hidden>
+    <div class="modal loc-modal" role="dialog">
+      <div class="modal-head">
+        <h3 id="locTitle">本地化</h3>
+        <button type="button" id="btnCloseLoc">×</button>
+      </div>
+      <div id="locHome">
+        <button type="button" class="primary" id="btnLocGather">搜集文本</button>
+        <div id="locLangList" class="loc-lang-list"></div>
+        <div class="loc-add">
+          <input id="locAddSearch" class="field-input" placeholder="搜索并新增语言" />
+          <div id="locAddMenu" class="loc-add-menu" hidden></div>
+        </div>
+      </div>
+      <div id="locProg" hidden>
+        <div class="cine-bar"><span id="locBar"></span></div>
+        <div class="muted" id="locProgLabel"></div>
+      </div>
+      <div id="locWork" hidden>
+        <div class="loc-toolbar">
+          <select id="locLangSwitch" class="level-pick"></select>
+          <button type="button" class="primary" id="btnLocSave">保存并编译</button>
+        </div>
+        <div id="locTable" class="loc-table"></div>
+      </div>
+    </div>
+  </div>
+  <script src="/assets/langs.js"></script>
+  <div id="nodeTip" class="node-tip" hidden></div>
+  <div id="nodeMenu" class="ctx-menu" hidden></div>
+  <div id="libModal" class="modal-bg" hidden>
+    <div class="modal" role="dialog">
+      <div class="modal-head"><h3>自定义库</h3><button type="button" id="btnCloseLib">×</button></div>
+      <div id="libBody"></div>
+    </div>
+  </div>
+  <div id="palette" class="palette" hidden></div>
+  <div id="toast" hidden></div>
+  <script src="/assets/host.js"></script>
+  <script src="/assets/framework.js"></script>
+  <script src="/assets/viewport3d.js"></script>
+  <script src="/assets/ui.js"></script>
+  <script src="/assets/graph.js"></script>
+  <script src="/assets/player.js"></script>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

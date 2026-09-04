@@ -1,0 +1,16 @@
+{
+  "id": "example.hello",
+  "name": "Example Hello",
+  "name_zh": "示例 Hello",
+  "version": "1.0.0",
+  "entry": "plugin.js",
+  "author": "Axiox Media",
+  "author_zh": "安溯媒体",
+  "homepage": "https://axiox.media",
+  "official": true,
+  "category": "utility",
+  "subcategory": "sample",
+  "summary": "A tiny sample node so you can see how a plugin registers.",
+  "summary_zh": "最小示例，只用来展示插件怎么挂一个节点。",
+  "contributes": { "nodes": ["example.hello"] }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "core.story",
+  "name": "Interactive Story",
+  "name_zh": "互动剧情",
+  "version": "1.0.0",
+  "entry": "plugin.js",
+  "author": "Axiox Media",
+  "author_zh": "安溯媒体",
+  "homepage": "https://axiox.media",
+  "official": true,
+  "category": "narrative",
+  "subcategory": "dialogue",
+  "summary": "Starts the story, plays videos, shows choices, sets variables and branches.",
+  "summary_zh": "负责开场、播片、选项、写变量和分支，把一条互动剧情串起来。",
+  "contributes": {
+    "nodes": ["story.start", "video.play", "story.choice", "story.setVar", "story.branch", "story.end"]
+  }
+}

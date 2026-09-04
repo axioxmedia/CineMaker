@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>CineMaker Player</title>
+  <link rel="icon" href="/brand/logo.png" />
+  <link rel="stylesheet" href="/assets/vendor/fontawesome/all.min.css" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <style>
+    body { display: flex; flex-direction: column; }
+    #playRoot { flex: 1; min-height: 0; display: grid; place-items: center; background: #000; }
+    #playRoot .play-stage { width: min(1280px, 100%); height: 100%; }
+    #playRoot video { height: 100%; object-fit: contain; }
+  </style>
+</head>
+<body class="aio-app axiox-shell">
+  <header class="topbar">
+    <img class="mark" src="/brand/logo.png" alt="" />
+    <strong id="gameTitle">CineMaker</strong>
+  </header>
+  <div id="playRoot">
+    <div class="play-stage">
+      <video id="pieVideo" playsinline></video>
+      <div class="play-fade" id="pieFade"></div>
+      <div class="play-speaker" id="pieSpeaker"></div>
+      <div class="play-text" id="pieText"></div>
+      <div class="play-choices" id="pieChoices"></div>
+      <audio id="pieBgm"></audio>
+      <audio id="pieSfx"></audio>
+    </div>
+  </div>
+  <script src="/assets/host.js"></script>
+  <script src="/assets/player.js"></script>
+  <script>
+    (async () => {
+      const pack = await fetch("/api/pack").then((r) => r.json());
+      document.getElementById("gameTitle").textContent = pack.title || "CineMaker";
+      const media = pack.media || {};
+      PlayRuntime.mount({
+        video: document.getElementById("pieVideo"),
+        text: document.getElementById("pieText"),
+        speaker: document.getElementById("pieSpeaker"),
+        fade: document.getElementById("pieFade"),
+        bgm: document.getElementById("pieBgm"),
+        sfx: document.getElementById("pieSfx"),
+        choices: document.getElementById("pieChoices"),
+        mediaUrl: (id) => media[id] ? "/pack-media/" + String(media[id]).replace(/^media\//, "") : "/api/drive/file/" + id + "/raw",
+      });
+      const resumed = await PlayRuntime.loadSlot();
+      if (!resumed) PlayRuntime.start(pack.graph || pack);
+    })();
+  </script>
+</body>
+</html>

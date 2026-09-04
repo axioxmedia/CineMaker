@@ -1,0 +1,7 @@
+{
+  "id": "core.assets",
+  "name": "Asset Library",
+  "version": "1.0.0",
+  "entry": "plugin.js",
+  "contributes": { "assetKinds": ["video", "image", "audio"] }
+}

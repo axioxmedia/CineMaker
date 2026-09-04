@@ -1,0 +1,26 @@
+{
+  "id": "encounter.scifi_boss",
+  "name": "Sci-Fi Boss Encounter",
+  "name_zh": "科幻Boss遭遇战",
+  "version": "1.0.0",
+  "entry": "plugin.js",
+  "author": "ZLM Crafter",
+  "author_zh": "ZLM Crafter",
+  "homepage": "",
+  "official": false,
+  "category": "ai",
+  "subcategory": "npc",
+  "summary": "Interactive sci-fi boss encounter: six archetypes, HP phases, action families, player turns. No 3D meshes.",
+  "summary_zh": "把科幻Boss包译成可交互遭遇：六种原型、血量阶段、动作族、玩家回合。不含3D网格。",
+  "contributes": {
+    "nodes": [
+      "encounter.scifi_boss.spawn",
+      "encounter.scifi_boss.hud",
+      "encounter.scifi_boss.act",
+      "encounter.scifi_boss.strike",
+      "encounter.scifi_boss.turn",
+      "encounter.scifi_boss.check",
+      "encounter.scifi_boss.player"
+    ]
+  }
+}

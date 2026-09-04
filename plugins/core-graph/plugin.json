@@ -1,0 +1,7 @@
+{
+  "id": "core.graph",
+  "name": "Graph Runtime",
+  "version": "1.0.0",
+  "entry": "plugin.js",
+  "contributes": { "nodes": [] }
+}
