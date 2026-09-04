@@ -1,0 +1,15 @@
+CineMaker — build a standalone Windows EXE
+==========================================
+
+1. Install Python 3.11 or 3.12 from python.org. Check "Add python.exe to PATH".
+2. Unzip this folder.
+3. Double-click build_exe.bat.
+4. Result: dist\CineMaker.exe
+
+Copy CineMaker.exe to another PC. The first launch creates CineMakerData
+next to the EXE (graphs, uploads, user plugins). No source tree required.
+
+If startup fails, send dist\cinemaker.log.
+
+Rebuild after every source change. Defender may warn on an unsigned
+PyInstaller binary. That is expected.
