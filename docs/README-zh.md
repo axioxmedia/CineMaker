@@ -10,30 +10,18 @@
   <a href="../README.md"><img src="https://img.shields.io/badge/English-README-7ee0c6?style=for-the-badge" alt="English README" /></a>
 </p>
 
-<p>
-  <img src="https://raw.githubusercontent.com/axioxmedia/CineMaker/refs/heads/main/static/cap.png" alt="APPCap" /></a>
-</p>
-
 </div>
 
-推荐用 **[GitHub 部署器](https://github.com/axioxmedia/github-deployer)** 拉取 Release EXE。
+## 致谢
 
-## 安装
+蓝图工作区使用 [Google Blockly](https://github.com/google/blockly)（Apache License 2.0）。
+版权归 Google LLC 与 Blockly 贡献者。Blockly 与 CineMaker 无隶属关系。
+见仓库内 `static/vendor/blockly/` 及 https://github.com/google/blockly/blob/master/LICENSE。
 
-1. 打开部署器，粘贴本仓库地址，解析后确认部署。
-2. 打 EXE：`build\\build_exe.bat`
-3. 源码运行：`pip install -r requirements.txt` 然后 `python app.py`
+拼接音效随 Blockly 分发，许可相同。
 
-## 使用
+## License
 
-顶栏、工作页签（场景 / 全局实例 / 游戏模式）、左侧栏、画布、检查器、资产库、控制台、PIE。
-
-## 插件
-
-运行中导入 zip（`plugin.json` + `plugin.js`）。用户插件先停用再红色卸载。详见 [PLUGIN.md](PLUGIN.md)。
-
-## 资产与三维
-
-导入打成 `.aioassets`。视口在 `static/viewport3d.js`。发行平台：EXE 或 H5。
+见 [LICENSE](../LICENSE)。从商店导入的资产仍受原协议约束。
 
 由安溯媒体打包 · [axiox.media](https://axiox.media)
