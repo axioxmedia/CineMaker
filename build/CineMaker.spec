@@ -1,5 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(SPEC)))
 
 hidden = [
     "uvicorn", "uvicorn.logging", "uvicorn.loops", "uvicorn.loops.auto", "uvicorn.loops.asyncio",
@@ -16,8 +19,32 @@ hidden = [
 ]
 hidden += collect_submodules("uvicorn")
 hidden += collect_submodules("anyio")
-datas = [("static", "static"), ("plugins", "plugins"), ("engine", "engine"), ("docs", "docs"), ("version.json", "."), ("build/icon.ico", ".")]
+
+def pair(name, dest=None):
+    return (os.path.join(ROOT, name), dest or name)
+
+datas = [pair("static"), pair("plugins"), pair("engine"), pair("docs"), pair("version.json", ".")]
+icon = os.path.join(ROOT, "build", "icon.ico")
+if os.path.exists(icon):
+    datas.append((icon, "."))
 datas += collect_data_files("webview")
-a = Analysis(["app.py"], pathex=[], binaries=[], datas=datas, hiddenimports=hidden, hookspath=[], hooksconfig={}, runtime_hooks=[], excludes=[], noarchive=False)
+
+a = Analysis(
+    [os.path.join(ROOT, "app.py")],
+    pathex=[ROOT],
+    binaries=[],
+    datas=datas,
+    hiddenimports=hidden,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+)
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name="CineMaker", debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False, disable_windowed_traceback=False, icon="build/icon.ico" if __import__("os").path.exists("build/icon.ico") else None)
+exe = EXE(
+    pyz, a.scripts, a.binaries, a.datas, [],
+    name="CineMaker", debug=False, bootloader_ignore_signals=False,
+    strip=False, upx=False, console=False, disable_windowed_traceback=False,
+    icon=icon if os.path.exists(icon) else None,
+)
