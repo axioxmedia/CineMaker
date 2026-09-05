@@ -22,6 +22,10 @@
       <button type="button" class="icon-btn" id="btnEditorSet" title="编辑器设定"><i class="fa-solid fa-sliders"></i></button>
       <button type="button" class="icon-btn" id="btnProjSet" title="项目设定"><i class="fa-solid fa-gear"></i></button>
       <div id="projName" class="proj-name">未命名</div>
+      <div class="update-slot">
+        <button type="button" id="btnUpdate" class="upd-btn">检查更新</button>
+        <span id="buildNo" class="build-no">0.2.2 · 20260905.7</span>
+      </div>
     </div>
     <div class="topbar">
     <img class="mark" src="/brand/logo.png" alt="" />
@@ -54,7 +58,8 @@
     <aside class="rail" id="nodeRail"></aside>
     <div class="split" data-split="left"></div>
     <section class="stage">
-      <canvas id="graphCanvas"></canvas>
+      <canvas id="graphCanvas" hidden></canvas>
+      <div id="blocklyDiv"></div>
       <div id="graphHint" class="hint"></div>
     </section>
     <div class="split" data-split="right"></div>
@@ -98,12 +103,14 @@
       <div class="drive-toolbar">
         <button type="button" id="btnUp" title="返回"><i class="fa-solid fa-arrow-left"></i></button>
         <button type="button" id="btnNewFolder" title="新建文件夹"><i class="fa-solid fa-folder-plus"></i></button>
-        <label class="upload gold-upload" title="上传"><i class="fa-solid fa-upload"></i> 上传<input type="file" id="filePick" multiple accept="video/*,image/*,audio/*" /></label>
+        <label class="upload gold-upload" title="上传"><i class="fa-solid fa-upload"></i> 上传<input type="file" id="filePick" multiple accept="video/*,image/*,audio/*,.glb,.gltf,.fbx,.obj,.vrm,.mtl,.mat,.sbsar" /></label>
         <select id="assetFilter">
           <option value="">全部</option>
           <option value="video">视频</option>
           <option value="image">图片</option>
           <option value="audio">音频</option>
+          <option value="model3d">三维模型</option>
+          <option value="material">材质</option>
           <option value="folder">文件夹</option>
         </select>
         <input id="assetSearch" class="field-input" type="search" placeholder="搜索资产" />
@@ -197,6 +204,7 @@
       </div>
     </div>
   </div>
+  <script src="/assets/build-info.js"></script>
   <script src="/assets/langs.js"></script>
   <div id="nodeTip" class="node-tip" hidden></div>
   <div id="nodeMenu" class="ctx-menu" hidden></div>
@@ -210,9 +218,15 @@
   <div id="toast" hidden></div>
   <script src="/assets/host.js"></script>
   <script src="/assets/framework.js"></script>
+  <script src="/assets/vendor/three/legacy/three.min.js"></script>
   <script src="/assets/viewport3d.js"></script>
+  <script src="/assets/view3d-dock.js"></script>
   <script src="/assets/ui.js"></script>
-  <script src="/assets/graph.js"></script>
+  <script src="/assets/vendor/blockly/blockly.min.js"></script>
+  <script src="/assets/vendor/blockly/blocks_compressed.js"></script>
+  <script src="/assets/vendor/blockly/zh-hans.js"></script>
+  <script src="/assets/blockly-lib.js"></script>
+  <script src="/assets/blockly-bridge.js"></script>
   <script src="/assets/player.js"></script>
   <script src="/assets/app.js"></script>
 </body>

@@ -1,6 +1,6 @@
 # interface.stage — 舞台 HUD
 
-面向 CineMaker 交互影像的 Widget 舞台层。用节点控制片头、过场遮幅、淡入淡出、通知与跳过，而不是把 Unreal UMG 搬进来。
+面向 CineMaker 交互影像的 Widget 舞台层。用节点控制片头、过场遮幅、淡入淡出、通知与跳过，用舞台层节点完成。
 
 ## 能力图
 
@@ -34,7 +34,7 @@ CineMaker 用什么做:
     每个执行器都会 ctx.say / toast，并在 DOM 里画 #cf-stage-hud
 
 不做:
-  不复制 Marketplace / Fab 源码、UMG、材质、贴图、音效
+  不复制 Marketplace / Fab 源码、舞台层、材质、贴图、音效
   不实现 3D 小地图、世界空间标记、准星命中判定、渲染目标粒子
   不实现血条 / 武器栏（原 Pack 也刻意省略）
   不改 graph.js / player.js / host.js / app.py

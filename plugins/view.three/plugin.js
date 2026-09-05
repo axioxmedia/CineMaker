@@ -39,6 +39,12 @@
   }
 
   function ensureDock() {
+    if (CineHost.view3dDock) {
+      dock = CineHost.view3dDock.mount();
+      viewer = CineHost.view3dDock.viewer();
+      if (dock && dock.root) dock.root.style.display = "";
+      return dock;
+    }
     if (dock && document.body.contains(dock.root)) return dock;
     var root = css(el("section"), "display:flex;flex-direction:column;gap:8px;margin:0 0 10px;padding:10px;border:1px solid #1f3a42;background:#0a1014;border-radius:10px;color:#d7e6e2");
     root.id = "view-three-dock";
@@ -89,26 +95,67 @@
     return dock;
   }
 
+  function goldSwitch(on) {
+    var sw = el("button");
+    sw.type = "button";
+    sw.className = "gold-sw" + (on ? " on" : "");
+    sw.innerHTML = "<i></i>";
+    return sw;
+  }
+
   function renderLights() {
     if (!dock || !viewer) return;
     dock.lightsBox.innerHTML = "";
     (viewer.lightsData || []).forEach(function (L) {
-      var row = css(el("div"), "display:grid;grid-template-columns:18px 52px 1fr 1fr;gap:4px;align-items:center");
-      var on = inp("checkbox", ""); on.checked = L.enabled !== false;
-      var id = el("span", "font:11px ui-monospace,monospace", L.id);
-      var intens = inp("number", L.intensity); intens.step = "0.05";
+      var card = el("div");
+      card.className = "lite-card";
+      var head = el("div");
+      head.className = "lite-head";
+      var sw = goldSwitch(L.enabled !== false);
+      var name = el("strong", "", L.id);
       var col = inp("color", L.color || "#ffffff");
-      row.appendChild(on); row.appendChild(id); row.appendChild(intens); row.appendChild(col);
-      var pos = css(el("div"), "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;grid-column:1/-1");
-      ["x","y","z"].forEach(function (k) { var i = inp("number", L[k] || 0); i.step = "0.1"; i.title = k; i.onchange = function () { patchLight(L.id, k, Number(i.value)); }; pos.appendChild(i); });
-      var rot = css(el("div"), "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;grid-column:1/-1");
-      ["rx","ry","rz"].forEach(function (k) { var i = inp("number", L[k] || 0); i.step = "1"; i.title = k; i.onchange = function () { patchLight(L.id, k, Number(i.value)); }; rot.appendChild(i); });
-      on.onchange = function () { patchLight(L.id, "enabled", on.checked); };
-      intens.onchange = function () { patchLight(L.id, "intensity", Number(intens.value)); };
+      col.className = "lite-col";
+      head.appendChild(sw);
+      head.appendChild(name);
+      head.appendChild(col);
+      function row(label, key, min, max, step) {
+        var wrap = el("div");
+        wrap.className = "lite-row";
+        var lab = el("span", "", label);
+        var range = document.createElement("input");
+        range.type = "range";
+        range.min = String(min); range.max = String(max); range.step = String(step);
+        range.value = String(L[key] == null ? 0 : L[key]);
+        var num = inp("number", L[key] == null ? 0 : L[key]);
+        num.step = String(step);
+        range.oninput = function () { num.value = range.value; patchLight(L.id, key, Number(range.value)); };
+        num.onchange = function () { range.value = num.value; patchLight(L.id, key, Number(num.value)); };
+        wrap.appendChild(lab); wrap.appendChild(range); wrap.appendChild(num);
+        return wrap;
+      }
+      card.appendChild(head);
+      card.appendChild(row(zh() ? "亮度" : "Lux", "intensity", 0, 4, 0.05));
+      card.appendChild(row("X", "x", -12, 12, 0.1));
+      card.appendChild(row("Y", "y", -12, 12, 0.1));
+      card.appendChild(row("Z", "z", -12, 12, 0.1));
+      var rotLab = el("div", "color:#8b8373;font:10px ui-sans-serif", zh() ? "旋转 RX / RY / RZ" : "RX / RY / RZ");
+      var rot = el("div");
+      rot.className = "lite-rot";
+      ["rx","ry","rz"].forEach(function (k) {
+        var i = inp("number", L[k] || 0); i.step = "1"; i.title = k;
+        i.onchange = function () { patchLight(L.id, keyName(k), Number(i.value)); };
+        rot.appendChild(i);
+      });
+      function keyName(k) { return k; }
+      card.appendChild(rotLab);
+      card.appendChild(rot);
+      sw.onclick = function () {
+        var next = !sw.classList.contains("on");
+        sw.classList.toggle("on", next);
+        patchLight(L.id, "enabled", next);
+      };
       col.oninput = function () { patchLight(L.id, "color", col.value); };
-      dock.lightsBox.appendChild(row);
-      dock.lightsBox.appendChild(pos);
-      dock.lightsBox.appendChild(rot);
+      dock.lightsBox.appendChild(card);
     });
   }
 
@@ -206,7 +253,11 @@
           slot: "top-actions",
           label: zh() ? "三维预览" : "3D Preview",
           icon: "fa-cube",
-          onClick: function () { ensureDock(); if (CineHost.toast) CineHost.toast(zh() ? "右侧三维预览坞" : "3D dock"); },
+          onClick: function () {
+            var d = ensureDock();
+            if (d && d.root) d.root.style.display = "";
+            if (viewer && viewer._resize) viewer._resize();
+          },
         });
       }
       if (CineHost.log) CineHost.log("output", "view.three bundled on viewport3d");
@@ -252,6 +303,7 @@
       { id: "rx", label: "旋转X", default: -40 }, { id: "ry", label: "旋转Y", default: 25 }, { id: "rz", label: "旋转Z", default: 0 },
     ],
     tooltip: "预置棚灯：key / fill / rim / hemi / ambient。亮度、位置、旋转都可调。",
+    tooltip_en: "Studio lights. Intensity, position and rotation are live.",
   });
   node({
     type: TYPES.material, title: "三维材质", title_en: "3D Material", category: "viewport",
@@ -273,6 +325,7 @@
     icon: "fa-film", color: "#a78bfa",
     inputs: [{ id: "in", label: "执行", label_en: "Exec", kind: "exec" }],
     outputs: [{ id: "out", label: "然后", label_en: "Then", kind: "exec" }],
+    tooltip: "播放已加载模型上的骨骼动画片段。", tooltip_en: "Play a skeletal clip on the loaded model.",
     fields: [
       { id: "clip", label: "片段名", default: "" },
       { id: "loop", label: "loop/once", default: "loop" },
@@ -284,6 +337,7 @@
     icon: "fa-video", color: "#818cf8",
     inputs: [{ id: "in", label: "执行", label_en: "Exec", kind: "exec" }],
     outputs: [{ id: "out", label: "然后", label_en: "Then", kind: "exec" }],
+    tooltip: "切换预览相机机位：等轴 / 正面 / 侧面 / 顶视，并设定视角。", tooltip_en: "Switch preview camera: iso, front, side, top.",
     fields: [
       { id: "preset", label: "iso/front/side/top", default: "iso" },
       { id: "fov", label: "FOV", default: 40 },
@@ -294,6 +348,7 @@
     icon: "fa-expand", color: "#fb7185",
     inputs: [{ id: "in", label: "执行", label_en: "Exec", kind: "exec" }],
     outputs: [{ id: "out", label: "然后", label_en: "Then", kind: "exec" }],
+    tooltip: "把当前三维镜头呈现到播放层，可附字幕与动画。", tooltip_en: "Present the current 3D beat on the play layer.",
     fields: [
       { id: "url", label: "地址", default: "" },
       { id: "assetId", label: "资源 ID", default: "" },

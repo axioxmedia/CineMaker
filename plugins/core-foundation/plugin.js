@@ -116,12 +116,12 @@ CineHost.registerNodeType({
   icon: "fa-rotate",
   color: "#c9a227",
   outputs: [
-    { id: "body", label: "Loop Body" },
-    { id: "done", label: "Completed" },
+    { id: "body", label: "循环体", label_en: "Loop Body" },
+    { id: "done", label: "完成", label_en: "Completed" },
   ],
   fields: [
-    { id: "first", label: "First", default: "0" },
-    { id: "last", label: "Last", default: "3" },
+    { id: "first", label: "起始", label_en: "First", default: "0" },
+    { id: "last", label: "结束", label_en: "Last", default: "3" },
     { id: "indexKey", label: "Index 变量", default: "i" },
   ],
 });

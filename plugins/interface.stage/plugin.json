@@ -10,8 +10,8 @@
   "official": false,
   "category": "interface",
   "subcategory": "hud",
-  "summary": "CineMaker widget stage for title screens, cinematic letterbox, fades, notifications, and cutscene skip — HUD communication without Unreal UMG.",
-  "summary_zh": "面向 CineMaker 的舞台层控件：片头、过场遮幅、淡入淡出、通知条与跳过过场。用节点控制 Widget，而不是 UMG。",
+  "summary": "CineMaker widget stage for title screens, cinematic letterbox, fades, notifications, and cutscene skip — HUD communication with stage widgets.",
+  "summary_zh": "面向 CineMaker 的舞台层控件：片头、过场遮幅、淡入淡出、通知条与跳过过场。用节点控制 Widget，用舞台层。",
   "contributes": {
     "nodes": [
       "interface.stage.mode",

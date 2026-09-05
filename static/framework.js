@@ -105,5 +105,40 @@
     H.registerAssetKind({ id: "aioassets", label: ".aioassets" });
   }
 
+  var THEME_DEFAULT = {
+    "--bg0": "#0b0d12",
+    "--bg1": "#12141c",
+    "--bg2": "#1a1d27",
+    "--line": "#2a2e3a",
+    "--text": "#ece7d8",
+    "--muted": "#8b8373",
+    "--gold": "#e7c07a",
+    "--gold-2": "#c9a227",
+    "--teal": "#7aa2a8",
+    "--rose": "#c45c5c",
+    "--ok": "#7d9a6c"
+  };
+  var themePresets = { axiox: Object.assign({}, THEME_DEFAULT) };
+  H.theme = {
+    defaults: THEME_DEFAULT,
+    apply: function (vars) {
+      vars = vars || {};
+      Object.keys(vars).forEach(function (k) {
+        var key = k.charAt(0) === "-" ? k : "--" + k;
+        document.documentElement.style.setProperty(key, vars[k]);
+      });
+      H.emit && H.emit("theme:changed", H.theme.get());
+    },
+    get: function () {
+      var cs = getComputedStyle(document.documentElement);
+      var out = {};
+      Object.keys(THEME_DEFAULT).forEach(function (k) { out[k] = cs.getPropertyValue(k).trim() || THEME_DEFAULT[k]; });
+      return out;
+    },
+    reset: function () { H.theme.apply(THEME_DEFAULT); },
+    registerPreset: function (id, vars) { if (id) themePresets[id] = vars || {}; },
+    usePreset: function (id) { if (themePresets[id]) H.theme.apply(themePresets[id]); }
+  };
   H.log && H.log("output", "CineHost framework schema " + H.SCHEMA);
 })();
+

@@ -8,10 +8,11 @@ import shutil
 import sys
 import traceback
 import time
+import threading
 from pathlib import Path
 
-from export_pack import write_pack
-from project_store import ProjectStore
+from engine.export_pack import write_pack, write_h5_pack
+from engine.project_store import ProjectStore
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -19,9 +20,10 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from axioxmedia import apply_hwnd_icon, axiox_window_title, aio_logo_png, aio_watermark
-from drive_store import DriveStore
-from plugin_host import PluginHost
+from engine.axioxmedia import apply_hwnd_icon, axiox_window_title, aio_logo_png, aio_watermark
+from engine.drive_store import DriveStore
+from engine.plugin_host import PluginHost
+from engine.updater import load_version, github_head, spawn_self, STATE as UPDATE_STATE, run_job, wait_parent
 
 
 def app_root() -> Path:
@@ -67,7 +69,57 @@ PACK = discover_pack()
 PLAYER_MODE = "--player" in sys.argv or PACK is not None
 
 app = FastAPI(title="CineMaker", version="0.1.0")
+WINDOW_HOLDER = {}
+
+def hide_editor_window() -> None:
+    """Hide main editor so updater can show; do not quit, do not stay on taskbar."""
+    w = WINDOW_HOLDER.get("w")
+    try:
+        if w is not None:
+            if hasattr(w, "hide"):
+                w.hide()
+            elif hasattr(w, "minimize"):
+                w.minimize()
+    except Exception as exc:
+        write_log("hide window: " + str(exc))
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+        hwnd = 0
+        try:
+            if w is not None and getattr(w, "native", None) is not None:
+                hwnd = int(w.native.Handle.ToInt32())
+        except Exception:
+            hwnd = 0
+        if not hwnd:
+            hwnd = int(user32.GetForegroundWindow())
+        if hwnd:
+            GWL_EXSTYLE = -20
+            WS_EX_TOOLWINDOW = 0x00000080
+            WS_EX_APPWINDOW = 0x00040000
+            style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+            style = (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
+            user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
+            user32.ShowWindow(hwnd, 0)  # SW_HIDE
+            write_log("editor hidden hwnd=" + str(hwnd))
+    except Exception as exc:
+        write_log("hide hwnd: " + str(exc))
+
+
+@app.get("/assets/vendor/three/{rest:path}")
+def vendor_three(rest: str):
+    path = (STATIC / "vendor" / "three" / rest).resolve()
+    root = (STATIC / "vendor" / "three").resolve()
+    if not str(path).startswith(str(root)) or not path.is_file():
+        raise HTTPException(404, "missing " + rest)
+    mime = "text/javascript" if path.suffix == ".js" else "application/octet-stream"
+    return FileResponse(path, media_type=mime)
+
+
 app.mount("/assets", StaticFiles(directory=STATIC), name="assets")
+
 
 
 def write_log(msg: str) -> None:
@@ -117,6 +169,90 @@ class PluginToggle(BaseModel):
     enabled: bool
 
 
+
+
+@app.get("/api/version")
+def api_version() -> dict:
+    meta = load_version()
+    return {
+        "name": meta.get("name") or "CineMaker",
+        "version": meta.get("version") or "0.0.0",
+        "build": meta.get("build") or "0",
+        "commit": (meta.get("commit") or "")[:12],
+        "github": meta.get("github"),
+    }
+
+
+@app.get("/api/update/check")
+def api_update_check() -> dict:
+    meta = load_version()
+    local = (meta.get("commit") or "").strip()
+    try:
+        remote = github_head(meta)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "available": False,
+            "build": meta.get("build"),
+            "version": meta.get("version"),
+            "error": str(exc),
+        }
+    sha = remote.get("sha") or ""
+    remote_build = ""
+    remote_ver = ""
+    try:
+        raw = httpx.get(
+            f"https://raw.githubusercontent.com/{meta.get('github') or 'axioxmedia/CineMaker'}/"
+            f"{meta.get('branch') or 'main'}/version.json",
+            timeout=12.0,
+            headers={"User-Agent": "CineMaker"},
+        )
+        if raw.status_code == 200:
+            info = raw.json()
+            remote_build = str(info.get("build") or "")
+            remote_ver = str(info.get("version") or "")
+    except Exception:
+        pass
+    available = bool(remote_build) and remote_build != str(meta.get("build") or "")
+    if not available and sha and local:
+        available = sha[:12] != local[:12]
+    return {
+        "ok": True,
+        "available": available,
+        "build": meta.get("build"),
+        "version": meta.get("version"),
+        "remote_build": remote_build,
+        "remote_version": remote_ver,
+        "local": local[:12],
+        "remote": sha[:12],
+        "message": remote.get("message") or "",
+    }
+
+
+@app.get("/api/update/status")
+def api_update_status() -> dict:
+    return UPDATE_STATE
+
+
+@app.post("/api/update/run")
+def api_update_run() -> dict:
+    err = ""
+    try:
+        spawn_self()
+    except Exception as exc:
+        err = str(exc)
+        write_log("update spawn: " + traceback.format_exc())
+    def _leave() -> None:
+        time.sleep(0.4)
+        hide_editor_window()
+    threading.Thread(target=_leave, daemon=True).start()
+    return {"ok": True, "spawned": True, "error": err}
+
+
+@app.get("/update")
+def update_page() -> FileResponse:
+    return FileResponse(STATIC / "update.html")
+
 @app.get("/")
 def index() -> FileResponse:
     page = "play.html" if PLAYER_MODE else "index.html"
@@ -148,15 +284,20 @@ def pack_media(name: str):
 class ExportBody(BaseModel):
     title: str = "Game"
     dest: str = ""
+    platform: str = "exe"
 
 
 @app.post("/api/export")
 def api_export(body: ExportBody) -> dict:
     dest = Path(body.dest) if body.dest else (DATA / "exports")
     dest.mkdir(parents=True, exist_ok=True)
+    platform = (body.platform or "exe").lower()
+    if platform == "h5":
+        folder = write_h5_pack(dest, body.title or "Game", load_graph(), drive, STATIC)
+        return {"ok": True, "path": str(folder), "platform": "h5"}
     exe = Path(sys.executable) if getattr(sys, "frozen", False) else None
     folder = write_pack(dest, body.title or "Game", load_graph(), drive, exe, ROOT)
-    return {"ok": True, "path": str(folder)}
+    return {"ok": True, "path": str(folder), "platform": "exe"}
 
 
 @app.get("/brand/logo.png")
@@ -172,6 +313,7 @@ def defaults() -> dict:
         "dataDir": str(DATA),
         "project": projects.current_id(),
         "playerMode": PLAYER_MODE,
+        **{k: load_version().get(k) for k in ("version", "build")},
     }
 
 
@@ -193,8 +335,7 @@ async def import_plugin(file: UploadFile = File(...)) -> dict:
         raise HTTPException(400, str(exc)) from exc
 
 
-@app.get("/api/plugins/sdk.zip")
-def plugin_sdk():
+def _sdk_bytes() -> bytes:
     import io
     import zipfile
 
@@ -204,12 +345,29 @@ def plugin_sdk():
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         if docs.exists():
             zf.write(docs, "PLUGIN.md")
+        else:
+            zf.writestr("PLUGIN.md", "# CineMaker plugin SDK\nTalk to CineHost schema 3.\n")
         if sample.exists():
             for p in sample.rglob("*"):
                 if p.is_file():
                     zf.write(p, Path("example.hello") / p.relative_to(sample))
-    return Response(content=buf.getvalue(), media_type="application/zip",
+        zf.writestr("README.txt", "Import example.hello.zip from the plugin window.\n")
+    return buf.getvalue()
+
+
+@app.get("/api/plugins/sdk.zip")
+def plugin_sdk():
+    return Response(content=_sdk_bytes(), media_type="application/zip",
                     headers={"Content-Disposition": "attachment; filename=cinemaker-plugin-sdk.zip"})
+
+
+@app.post("/api/plugins/sdk/save")
+def plugin_sdk_save() -> dict:
+    downloads = Path.home() / "Downloads"
+    downloads.mkdir(parents=True, exist_ok=True)
+    dest = downloads / "cinemaker-plugin-sdk.zip"
+    dest.write_bytes(_sdk_bytes())
+    return {"ok": True, "filename": dest.name, "path": str(dest), "folder": str(dest.parent)}
 
 
 @app.post("/api/plugins/{plugin_id}/enable")
@@ -347,7 +505,7 @@ def post_save(body: SaveSlotBody) -> dict:
 
 @app.get("/api/graph/validate")
 def validate_graph() -> dict:
-    from export_pack import validate_graph as vg
+    from engine.export_pack import validate_graph as vg
 
     return vg(load_graph(), drive)
 
@@ -542,9 +700,19 @@ def run_desktop() -> None:
     try:
         import webview
 
-        holder: dict = {}
+        holder = WINDOW_HOLDER
+        holder.clear()
 
         class Bridge:
+            def start_update(self) -> str:
+                try:
+                    spawn_self()
+                except Exception as exc:
+                    write_log("bridge update: " + str(exc))
+                    return str(exc)
+                hide_editor_window()
+                return "ok"
+
             def pick_folder(self) -> str:
                 w = holder.get("w")
                 if not w:
@@ -608,6 +776,51 @@ def run_desktop() -> None:
             thread.join(timeout=0.5)
 
 
+
+def run_updater() -> None:
+    import threading
+    import webview
+    from engine.updater import set_state
+
+    write_log("updater window start")
+    set_state(0, "正在更新")
+    port = _free_port(8791)
+    thread = threading.Thread(target=run_server, args=("127.0.0.1", port, False), daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{port}/update"
+    window = webview.create_window(
+        title="",
+        url=url,
+        width=520,
+        height=240,
+        resizable=False,
+        frameless=True,
+        easy_drag=True,
+        on_top=True,
+        background_color="#0b0d12",
+    )
+
+    def _work() -> None:
+        set_state(2, "开始同步")
+        time.sleep(0.4)
+        run_job()
+
+    threading.Thread(target=_work, daemon=True).start()
+
+    def block_close():
+        return False
+
+    try:
+        window.events.closing += block_close
+    except Exception:
+        pass
+    try:
+        webview.start()
+    except Exception:
+        write_log("updater webview: " + traceback.format_exc())
+        show_error("updater window failed:\n" + traceback.format_exc())
+
+
 def show_error(text: str) -> None:
     try:
         if os.name == "nt":
@@ -625,11 +838,14 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     ensure_stdio()
     try:
-        desktop = "--web" not in sys.argv and os.environ.get("CINEMAKER_WEB") != "1"
-        if desktop:
-            run_desktop()
+        if "--updater" in sys.argv or os.environ.get("CINEMAKER_UPDATER") == "1":
+            run_updater()
         else:
-            run_server("127.0.0.1", _free_port(8787), reload=not getattr(sys, "frozen", False))
+            desktop = "--web" not in sys.argv and os.environ.get("CINEMAKER_WEB") != "1"
+            if desktop:
+                run_desktop()
+            else:
+                run_server("127.0.0.1", _free_port(8787), reload=not getattr(sys, "frozen", False))
     except Exception:
         show_error("start failed:\n\n" + traceback.format_exc() + f"\n\n{LOG_FILE}")
         raise

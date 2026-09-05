@@ -62,6 +62,9 @@ const I18N = {
     libTitle: "自定义库",
     fns: "函数",
     macros: "宏",
+    updLatest: "当前版本是最新",
+    updReady: "可供更新",
+    updCheck: "检查更新",
     uninstall: "卸载插件",
     sampleDl: "下载案例",
     packedAt: "已打包到",
@@ -129,6 +132,9 @@ const I18N = {
     libTitle: "Custom library",
     fns: "Functions",
     macros: "Macros",
+    updLatest: "Up to date",
+    updReady: "Update available",
+    updCheck: "Check updates",
     uninstall: "Uninstall",
     sampleDl: "Download sample",
     packedAt: "Saved to",
@@ -191,7 +197,8 @@ function applyLang() {
   window.uiLang = lang;
   document.documentElement.lang = lang;
   if (document.getElementById("nodeRail")) renderRail();
-  if (window.Graph) Graph.draw();
+  if (window.Graph && Graph.refreshLang) Graph.refreshLang();
+  else if (window.Graph) Graph.draw();
   const titles = {
     modeGraph: "graph",
     modeAssets: "assets",
@@ -275,41 +282,73 @@ async function loadPlugins() {
 function renderRail() {
   const rail = document.getElementById("nodeRail");
   if (!rail) return;
-  const keep = rail.querySelector("#railSearch") ? rail.querySelector("#railSearch").value : "";
   rail.innerHTML = "";
   const search = document.createElement("input");
   search.id = "railSearch";
-  search.placeholder = "搜索节点";
-  search.value = keep;
+  search.placeholder = lang === "en" ? "Search" : "搜索";
   rail.appendChild(search);
-  const map = { flow: "blueprint", ui: "interface", video: "video", media: "media", misc: "utility" };
-  const groups = {};
-  CineHost.listNodeTypes().forEach((def) => {
-    const cat = (window.CATS && CATS.some((c) => c.id === def.category) ? def.category : map[def.category]) || "utility";
-    (groups[cat] ||= []).push(def);
+  const tree = (window.CineToolbox && CineToolbox()) || { contents: [] };
+  const cats = tree.contents || [];
+  cats.forEach((cat) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "rail-cat-btn";
+    const sw = document.createElement("i");
+    sw.style.cssText = "display:inline-block;width:10px;height:10px;border-radius:2px;background:" + (cat.colour || "#888") + ";margin-right:8px;";
+    btn.appendChild(sw);
+    btn.appendChild(document.createTextNode(cat.name || ""));
+    btn.onclick = () => openFlyout(cat, btn);
+    rail.appendChild(btn);
   });
-  const q = keep.toLowerCase();
-  const order = (window.CATS || [{ id: "blueprint", zh: "蓝图", en: "Blueprint" }]);
-  order.forEach((cat) => {
-    const id = cat.id || cat;
-    const list = (groups[id] || []).filter((def) => {
-      const label = CineHost.nodeLabel(def);
-      return !q || label.toLowerCase().includes(q) || def.type.includes(q);
-    });
-    if (!list.length) return;
-    const wrap = document.createElement("details");
-    wrap.open = !!q || id === "blueprint" || id === "narrative";
-    wrap.innerHTML = `<summary class="rail-cat">${(lang === "en" ? cat.en : cat.zh) || id} · ${list.length}</summary>`;
-    list.forEach((def) => {
-      const b = document.createElement("button");
-      b.className = "node-row";
-      b.innerHTML = `<i class="fa-solid ${def.icon || "fa-cube"}"></i><span>${CineHost.nodeLabel(def)}</span>`;
-      b.onclick = () => Graph.addNode(def.type);
-      wrap.appendChild(b);
-    });
-    rail.appendChild(wrap);
+  search.oninput = () => filterFlyout(search.value);
+}
+
+function openFlyout(cat, fromBtn) {
+  let box = document.getElementById("blockFlyout");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "blockFlyout";
+    const stage = document.querySelector("#viewGraph .stage") || document.body;
+    stage.appendChild(box);
+  }
+  document.querySelectorAll(".rail-cat-btn").forEach((b) => b.classList.toggle("on", b === fromBtn));
+  if (box.dataset.cat === cat.name && !box.hidden) {
+    box.hidden = true;
+    box.dataset.cat = "";
+    return;
+  }
+  box.hidden = false;
+  box.dataset.cat = cat.name;
+  box.innerHTML = "";
+  const items = cat.contents || [];
+  items.forEach((it) => {
+    if (it.kind !== "block" || !it.type) return;
+    const def = (CineHost.getNodeType && CineHost.getNodeType(it.type)) || { type: it.type, title: it.type };
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "fly-item";
+    b.style.background = def.color || cat.colour || "#5c81a6";
+    const natural = (window.CineBlockLabel && CineBlockLabel(it.type)) || (CineHost.nodeLabel && CineHost.nodeLabel(def)) || def.title || it.type;
+    b.textContent = natural;
+    b.title = (lang === "en" ? (def.tooltip_en || def.tooltip) : (def.tooltip || def.tooltip_en)) || natural;
+    b.onclick = () => {
+      Graph.addNode(it.type);
+    };
+    box.appendChild(b);
   });
-  search.oninput = () => renderRail();
+  if (cat.custom === "VARIABLE") {
+    box.innerHTML = "<p class='muted'>" + (lang === "en" ? "Use Variables in the workspace menu." : "在工作区用变量按钮创建变量积木。") + "</p>";
+  }
+  if (cat.custom === "PROCEDURE") {
+    box.innerHTML = "<p class='muted'>" + (lang === "en" ? "Drop a procedure from this list after you create one." : "先在工作区创建过程，再从这里调用。") + "</p>";
+  }
+}
+
+function filterFlyout(q) {
+  q = (q || "").toLowerCase();
+  document.querySelectorAll("#blockFlyout .fly-item").forEach((b) => {
+    b.style.display = !q || b.textContent.toLowerCase().includes(q) ? "" : "none";
+  });
 }
 
 function setPreviewAsset(id) {
@@ -419,7 +458,11 @@ async function refreshDrive() {
     const d = document.createElement("div");
     d.className = "card" + (selectedAsset === e.id ? " on" : "");
     let thumb = "";
-    if (e.kind === "image" || e.kind === "video") {
+    if (e.kind === "model3d") {
+      thumb = `<div class="kind-icon"><i class="fa-solid fa-cube"></i></div>`;
+    } else if (e.kind === "material") {
+      thumb = `<div class="kind-icon"><i class="fa-solid fa-fill-drip"></i></div>`;
+    } else if (e.kind === "image" || e.kind === "video") {
       thumb = `<img class="thumb" src="/api/drive/file/${e.id}/thumb" alt="" />`;
     } else if (e.kind === "audio") {
       thumb = `<div class="thumb audio"><i class="fa-solid fa-music"></i></div>`;
@@ -778,8 +821,61 @@ async function runWizard() {
   gate.hidden = true;
 }
 
+
+async function bindUpdater() {
+  const btn = document.getElementById("btnUpdate");
+  const tag = document.getElementById("buildNo");
+  if (!btn || !tag) return;
+  btn.disabled = false;
+  if (window.CINE_BUILD) tag.textContent = CINE_BUILD.version + " · " + CINE_BUILD.build;
+  try {
+    const ver = await CineHost.api("/api/version");
+    tag.textContent = (ver.version || "0") + " · " + (ver.build || "");
+    const chk = await CineHost.api("/api/update/check");
+    if (chk && chk.build) tag.textContent = (chk.version || ver.version) + " · " + chk.build;
+    if (chk && chk.available) {
+      btn.textContent = t("updReady");
+      btn.classList.add("ready");
+      CineHost.toast(t("updReady"));
+    } else {
+      btn.textContent = t("updLatest");
+      btn.classList.remove("ready");
+      if (chk && chk.error) CineHost.log("message", "update: " + chk.error);
+    }
+  } catch (err) {
+    btn.textContent = t("updCheck");
+    btn.classList.remove("ready");
+    CineHost.log && CineHost.log("message", "update check fail " + err);
+    CineHost.toast(String(err.message || err));
+  }
+  btn.onclick = async () => {
+    CineHost.log("message", "update click");
+    if (!btn.classList.contains("ready")) {
+      CineHost.toast(lang === "en" ? "Checking GitHub…" : "正在检查 GitHub…");
+      await bindUpdater();
+      if (!btn.classList.contains("ready")) {
+        CineHost.toast(t("updLatest"));
+      }
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = lang === "en" ? "Closing…" : "正在关闭…";
+    try {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.start_update) {
+        await window.pywebview.api.start_update();
+      } else {
+        await CineHost.api("/api/update/run", { method: "POST", body: {} });
+      }
+    } catch (err) {
+      CineHost.log && CineHost.log("message", "update run " + err);
+      try { await CineHost.api("/api/update/run", { method: "POST", body: {} }); } catch (e2) {}
+    }
+  };
+}
+
 async function boot() {
   applyLang();
+  bindUpdater();
   await runWizard();
   Graph.bind();
   await loadPlugins();
@@ -798,7 +894,25 @@ async function boot() {
   document.getElementById("pluginModal").addEventListener("click", (ev) => {
     if (ev.target.id === "pluginModal") openPlugins(false);
   });
-  document.getElementById("btnSdk").onclick = () => downloadHref("/api/plugins/sdk.zip", "cinemaker-plugin-sdk.zip");
+  document.getElementById("btnSdk").onclick = async () => {
+    const btn = document.getElementById("btnSdk");
+    if (btn) btn.disabled = true;
+    try {
+      const saved = await CineHost.api("/api/plugins/sdk/save", { method: "POST", body: {} });
+      const path = (saved && saved.path) || "";
+      try { await downloadHref("/api/plugins/sdk.zip", "cinemaker-plugin-sdk.zip"); } catch (e) {}
+      const msg = (lang === "en" ? "SDK saved: " : "SDK 已保存：") + path;
+      if (window.CineUI && CineUI.prompt) {
+        await CineUI.prompt({ title: t("sdk"), text: msg, value: path, ok: t("close"), cancel: t("close") });
+      } else {
+        CineHost.toast(msg);
+      }
+    } catch (err) {
+      CineHost.toast(String(err.message || err));
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
   const zipPick = document.getElementById("plugZip");
   const importBtn = document.getElementById("btnImportPlug");
   if (importBtn && zipPick) {
@@ -1021,8 +1135,11 @@ async function boot() {
       tipEl.hidden = true;
       return;
     }
+    const def = CineHost.getNodeType(info.node.type) || {};
     const pack = TIPS[info.node.type];
-    const text = pack ? (lang === "en" ? pack[1] : pack[0]) : "";
+    const text = pack
+      ? (lang === "en" ? pack[1] : pack[0])
+      : ((lang === "en" ? (def.tooltip_en || def.tooltip) : (def.tooltip || def.tooltip_en)) || CineHost.nodeLabel(def) || "");
     if (!text) {
       tipEl.hidden = true;
       return;
@@ -1327,9 +1444,21 @@ async function boot() {
     pack = await CineHost.runHook("export:writeManifest", pack);
     pack = await CineHost.runHook("export:injectPlayer", pack);
     CineHost.log("output", "export hooks done");
-    const title = await CineUI.prompt({ title: t("export"), text: t("exportAsk"), value: "Game", ok: t("export"), cancel: t("close") });
-    if (!title) return;
-    const bar = CineUI.progress({ title: t("exporting") });
+    const picked = await CineUI.prompt({
+      title: t("export"),
+      text: (lang === "en" ? "Title and storefront" : "游戏名与发行平台"),
+      value: "Game",
+      ok: t("export"),
+      cancel: t("close"),
+      extraHtml: `<div class="storefront">
+        <label class="sf on"><input type="radio" name="sf" value="exe" checked /> ${lang==="en"?"Windows EXE":"游戏本体 EXE"}</label>
+        <label class="sf"><input type="radio" name="sf" value="h5" /> H5</label>
+      </div>`
+    });
+    if (!picked) return;
+    const title = typeof picked === "string" ? picked : picked.value;
+    const platform = (typeof picked === "object" && picked.platform) ? picked.platform : "exe";
+    const bar = CineUI.progress({ title: platform === "h5" ? (lang==="en"?"Packing H5":"正在打包 H5") : t("exporting") });
     bar.set(8, t("save"));
     await saveGraph().catch(() => {});
     const chk = await CineHost.api("/api/graph/validate");
@@ -1347,7 +1476,7 @@ async function boot() {
     } catch (e) {}
     bar.set(55, t("packWrite"));
     try {
-      const res = await CineHost.api("/api/export", { method: "POST", body: { title, dest } });
+      const res = await CineHost.api("/api/export", { method: "POST", body: { title, dest, platform } });
       bar.set(100, t("exported"));
       setTimeout(() => bar.close(), 280);
       CineUI.toast(t("exported") + " " + res.path);

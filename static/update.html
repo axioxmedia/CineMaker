@@ -1,23 +1,50 @@
 <!DOCTYPE html>
-<html lang="zh"><head><meta charset="UTF-8" /><title>CineMaker 更新</title>
-<style>
-html,body{margin:0;height:100%;background:#0b0d12;color:#ece7d8;font-family:Sora,sans-serif;overflow:hidden}
-body{display:grid;place-items:center}
-.frame{width:100%;height:100%;box-sizing:border-box;border:1px solid #c9a227;display:grid;place-items:center;padding:24px;
-background:radial-gradient(800px 280px at 50% 0%,rgba(231,192,122,.16),transparent 60%),#0b0d12}
-.wrap{width:min(100%,480px);display:flex;flex-direction:column;gap:10px;text-align:center}
-h1{margin:0;font-size:18px;color:#e7c07a;letter-spacing:.08em}
-p{margin:0;font-size:13px;color:#8b8373;min-height:18px}
-.bar{height:10px;border-radius:99px;background:#1a1d27;border:1px solid #2a2e3a;overflow:hidden}
-.fill{height:100%;width:0;background:linear-gradient(90deg,#c9a227,#f3d7a1,#e7c07a)}
-.pct{font:12px monospace;color:#e7c07a}
-</style></head>
-<body><div class="frame"><div class="wrap">
-<h1>CINEMAKER 更新中</h1><p id="msg">正在同步 GitHub…</p>
-<div class="bar"><div class="fill" id="fill"></div></div><div class="pct" id="pct">0%</div>
-</div></div>
-<script>async function tick(){try{const r=await fetch("/api/update/status");const d=await r.json();
-document.getElementById("msg").textContent=d.message||"";const n=Math.max(0,Math.min(100,Number(d.percent||0)));
-document.getElementById("fill").style.width=n+"%";document.getElementById("pct").textContent=n+"%";
-if(d.done&&d.error)document.getElementById("msg").textContent=d.error;}catch(e){}setTimeout(tick,400);}tick();</script>
-</body></html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>CineMaker 更新</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0d12; color: #ece7d8;
+      font-family: "Sora", "Noto Sans SC", "Segoe UI", sans-serif; overflow: hidden; user-select: none; }
+    body { display: grid; place-items: center; }
+    .wrap { width: min(100%, 480px); box-sizing: border-box; padding: 8px 12px 4px;
+      display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    h1 { margin: 0; font-size: 18px; color: #e7c07a; letter-spacing: .08em; text-align: center; }
+    p { margin: 0; font-size: 13px; color: #8b8373; min-height: 18px; text-align: center; }
+    .bar { height: 10px; border-radius: 99px; background: #1a1d27; border: 1px solid #2a2e3a; overflow: hidden; }
+    .fill { height: 100%; width: 0%; background: linear-gradient(90deg, #c9a227, #f3d7a1, #e7c07a);
+      box-shadow: 0 0 16px rgba(231,192,122,.55); transition: width .35s ease; }
+    .pct { font: 12px "IBM Plex Mono", monospace; color: #e7c07a; text-align: center; }
+    .frame { width: 100%; height: 100%; box-sizing: border-box; border: 1px solid #c9a227;
+      background:
+        radial-gradient(800px 280px at 50% 0%, rgba(231,192,122,.16), transparent 60%),
+        #0b0d12;
+      display: grid; place-items: center; padding: 24px; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="wrap">
+      <h1>CINEMAKER 更新中</h1>
+      <p id="msg">正在同步 GitHub…</p>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="pct" id="pct">0%</div>
+    </div>
+  </div>
+  <script>
+    async function tick() {
+      try {
+        const r = await fetch("/api/update/status");
+        const d = await r.json();
+        document.getElementById("msg").textContent = d.message || "";
+        const n = Math.max(0, Math.min(100, Number(d.percent || 0)));
+        document.getElementById("fill").style.width = n + "%";
+        document.getElementById("pct").textContent = n + "%";
+        if (d.done && d.error) document.getElementById("msg").textContent = d.error;
+      } catch (e) {}
+      setTimeout(tick, 400);
+    }
+    tick();
+  </script>
+</body>
+</html>

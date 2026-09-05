@@ -30,6 +30,20 @@ const CineHost = (() => {
   }
   function registerNodeType(def) {
     if (!def || !def.type) return;
+    if (!def.title) def.title = def.title_en || def.type;
+    if (!def.title_en) def.title_en = def.title;
+    if (!def.tooltip) def.tooltip = def.title;
+    if (!def.tooltip_en) def.tooltip_en = def.title_en;
+    function bilingual(list) {
+      (list || []).forEach((s) => {
+        if (!s) return;
+        if (!s.label) s.label = s.label_en || s.id || "";
+        if (!s.label_en) s.label_en = s.label;
+      });
+    }
+    bilingual(def.fields);
+    bilingual(def.inputs);
+    bilingual(def.outputs);
     nodeTypes[def.type] = {
       inputs: [{ id: "in", label: "in", kind: "exec" }],
       outputs: [{ id: "out", label: "out", kind: "exec" }],
@@ -78,6 +92,11 @@ const CineHost = (() => {
     if (!def) return "";
     const zh = (window.uiLang || "zh") === "zh";
     return zh ? (def.title || def.title_en || def.type) : (def.title_en || def.title || def.type);
+  }
+  function pinLabel(s) {
+    if (!s) return "";
+    const zh = (window.uiLang || "zh") === "zh";
+    return zh ? (s.label || s.label_en || s.id || "") : (s.label_en || s.label || s.id || "");
   }
   async function api(path, opts = {}) {
     const headers = { ...(opts.headers || {}) };
@@ -322,6 +341,7 @@ const CineHost = (() => {
     getVarType,
     listActions,
     nodeLabel,
+    pinLabel,
     on,
     emit,
     hook,

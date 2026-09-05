@@ -41,6 +41,21 @@ const CineUI = (() => {
       const input = document.getElementById("cineModalInput");
       input.hidden = false;
       input.value = value || "";
+      const extraHost = document.getElementById("cineModalExtra") || (() => {
+        const d = document.createElement("div");
+        d.id = "cineModalExtra";
+        input.after(d);
+        return d;
+      })();
+      extraHost.innerHTML = arguments[0].extraHtml || "";
+      extraHost.querySelectorAll(".sf").forEach((lab) => {
+        lab.onclick = () => {
+          extraHost.querySelectorAll(".sf").forEach((x) => x.classList.remove("on"));
+          lab.classList.add("on");
+          const r = lab.querySelector("input");
+          if (r) r.checked = true;
+        };
+      });
       document.getElementById("cineProgressWrap").hidden = true;
       const actions = document.getElementById("cineModalActions");
       actions.innerHTML = `
@@ -53,10 +68,20 @@ const CineUI = (() => {
         hide();
         resolve(val);
       };
-      document.getElementById("cineOk").onclick = () => done(input.value.trim());
+      document.getElementById("cineOk").onclick = () => {
+        const extra = document.getElementById("cineModalExtra");
+        const platform = (document.querySelector("#cineModalExtra input[name=sf]:checked") || {}).value;
+        if (extra && extra.innerHTML.trim()) done({ value: input.value.trim(), platform: platform || "exe" });
+        else done(input.value.trim());
+      };
       document.getElementById("cineCancel").onclick = () => done(null);
       input.onkeydown = (e) => {
-        if (e.key === "Enter") done(input.value.trim());
+        if (e.key === "Enter") {
+          const extra = document.getElementById("cineModalExtra");
+          const platform = (document.querySelector("#cineModalExtra input[name=sf]:checked") || {}).value;
+          if (extra && extra.innerHTML.trim()) done({ value: input.value.trim(), platform: platform || "exe" });
+          else done(input.value.trim());
+        }
         if (e.key === "Escape") done(null);
       };
     });

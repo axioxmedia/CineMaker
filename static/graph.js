@@ -30,15 +30,32 @@ const Graph = (() => {
   };
 
   const PIN_COLOR = {
-    exec: "#f2f2f2",
-    bool: "#e74c3c",
-    int: "#1abc9c",
-    float: "#2ecc71",
-    number: "#2ecc71",
-    string: "#e84393",
-    array: "#3498db",
-    object: "#2980b9",
+    exec: "#fff3c4",
+    bool: "#c0392b",
+    int: "#16a085",
+    float: "#27ae60",
+    number: "#27ae60",
+    string: "#b33771",
+    array: "#2980b9",
+    object: "#1f618d",
   };
+  const CAT_COLOR = {
+    blueprint: "#5c81a6",
+    narrative: "#a55b80",
+    viewport: "#5ba58c",
+    camera: "#5b67a5",
+    asset: "#745ba5",
+    interface: "#5ba55b",
+    video: "#a5745b",
+    media: "#5b80a5",
+    utility: "#995ba5",
+    flow: "#5c81a6",
+    ui: "#5ba55b",
+  };
+  function blockColor(def) {
+    if (def && def.color && /^#/.test(def.color)) return def.color;
+    return CAT_COLOR[(def && def.category) || "utility"] || "#5c81a6";
+  }
 
   function pinKind(node, sockId, side) {
     const def = pinsOf(node);
@@ -57,6 +74,145 @@ const Graph = (() => {
     if (a === "number" && (b === "float" || b === "int")) return true;
     if (b === "number" && (a === "float" || a === "int")) return true;
     return a === b;
+  }
+
+  function execPins(node, side) {
+    const def = pinsOf(node);
+    const list = side === "in" ? (def.inputs || []) : (def.outputs || []);
+    return list.filter((s) => (s.kind || "exec") === "exec");
+  }
+  function isCBlock(node) {
+    if (execPins(node, "out").length >= 2) return true;
+    return /branch|loop|sequence|timer|if|switch/.test(node.type || "");
+  }
+  function childAt(parent, sockId) {
+    const l = state.links.find((x) => x.from === parent.id && x.fromSock === sockId);
+    return l ? state.nodes.find((n) => n.id === l.to) : null;
+  }
+  function incomingExec(node) {
+    return state.links.find((l) => {
+      if (l.to !== node.id) return false;
+      return pinKind(node, l.toSock, "in") === "exec";
+    });
+  }
+  function execDescendants(node) {
+    const ids = [];
+    const walk = (n) => {
+      execPins(n, "out").forEach((s) => {
+        const ch = childAt(n, s.id);
+        if (ch && !ids.includes(ch.id)) {
+          ids.push(ch.id);
+          walk(ch);
+        }
+      });
+    };
+    walk(node);
+    return ids;
+  }
+  function playSnap() {
+    try {
+      const ac = playSnap.ctx || (playSnap.ctx = new (window.AudioContext || window.webkitAudioContext)());
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = "triangle";
+      o.frequency.value = 880;
+      g.gain.setValueAtTime(0.09, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.09);
+      o.connect(g); g.connect(ac.destination);
+      o.start(); o.stop(ac.currentTime + 0.1);
+    } catch (e) {}
+  }
+  function layoutStacks() {
+    const frozen = new Set((state.drag && state.drag.ids) || []);
+    state.nodes.forEach((n) => layoutNode(n));
+    const visit = (n) => {
+      if (!n || frozen.has(n.id)) return;
+      if (isCBlock(n)) {
+        let y = n.y + 42;
+        execPins(n, "out").forEach((s) => {
+          y += 20;
+          const ch = childAt(n, s.id);
+          if (ch && !frozen.has(ch.id)) {
+            ch.x = n.x + 28;
+            ch.y = y;
+            visit(ch);
+            y += Math.max(36, subtreeH(ch));
+          } else {
+            y += 32;
+          }
+        });
+        n.h = Math.max(n.h, y - n.y + 18);
+        n.w = Math.max(n.w, 240);
+      } else {
+        const outs = execPins(n, "out");
+        const next = outs[0] ? childAt(n, outs[0].id) : null;
+        if (next && !frozen.has(next.id)) {
+          next.x = n.x;
+          next.y = n.y + n.h - 2;
+          visit(next);
+        }
+      }
+    };
+    state.nodes.filter((n) => !incomingExec(n)).forEach(visit);
+  }
+  function subtreeH(n) {
+    if (!n) return 28;
+    if (isCBlock(n)) return n.h;
+    let h = n.h;
+    const outs = execPins(n, "out");
+    const next = outs[0] ? childAt(n, outs[0].id) : null;
+    if (next) h += subtreeH(next) - 2;
+    return h;
+  }
+  function trySnap(node) {
+    if (!node) return false;
+    const ins = execPins(node, "in");
+    if (!ins.length) return false;
+    let best = null;
+    let bestD = 36;
+    state.nodes.forEach((other) => {
+      if (other.id === node.id) return;
+      if ((state.drag && state.drag.ids || []).includes(other.id)) return;
+      if (isCBlock(other)) {
+        let y = other.y + 42;
+        execPins(other, "out").forEach((s) => {
+          y += 20;
+          const d = Math.hypot(node.x - (other.x + 28), node.y - y);
+          if (d < bestD) {
+            bestD = d;
+            best = { parent: other, sock: s.id };
+          }
+          const ch = childAt(other, s.id);
+          y += ch ? Math.max(36, subtreeH(ch)) : 32;
+        });
+      } else {
+        const outs = execPins(other, "out");
+        if (outs[0]) {
+          const d = Math.hypot(node.x - other.x, node.y - (other.y + other.h));
+          if (d < bestD) {
+            bestD = d;
+            best = { parent: other, sock: outs[0].id };
+          }
+        }
+      }
+    });
+    if (!best) return false;
+    snapshot();
+    state.links = state.links.filter((l) =>
+      !(l.to === node.id && pinKind(node, l.toSock, "in") === "exec") &&
+      !(l.from === best.parent.id && l.fromSock === best.sock)
+    );
+    state.links.push({
+      id: uid("l"),
+      from: best.parent.id,
+      fromSock: best.sock,
+      to: node.id,
+      toSock: ins[0].id,
+      kind: "exec",
+    });
+    state.dirty = true;
+    playSnap();
+    return true;
   }
 
   function commentAt(p) {
@@ -102,8 +258,9 @@ const Graph = (() => {
   function layoutNode(n) {
     const def = pinsOf(n);
     const rows = Math.max((def.inputs || []).length, (def.outputs || []).length, 1);
-    n.w = 220;
-    n.h = 40 + rows * 22 + 12;
+    const title = ((CineHost.nodeLabel && CineHost.nodeLabel(def)) || def.title || n.type || "").length;
+    n.w = Math.max(196, 28 + title * 8);
+    n.h = 36 + rows * 26 + 10;
     return def;
   }
 
@@ -111,7 +268,7 @@ const Graph = (() => {
     const def = pinsOf(node);
     const list = side === "in" ? def.inputs : def.outputs;
     const idx = Math.max(0, list.findIndex((s) => s.id === sockId));
-    const y = node.y + 36 + idx * 22;
+    const y = node.y + 44 + idx * 26;
     const x = side === "in" ? node.x : node.x + node.w;
     return { x, y, sockId, side, node };
   }
@@ -410,6 +567,7 @@ const Graph = (() => {
     }
     ctx.lineWidth = 2;
     for (const l of state.links) {
+      if ((l.kind || pinKind(state.nodes.find((n) => n.id === l.from) || {}, l.fromSock, "out")) === "exec") continue;
       const a = state.nodes.find((n) => n.id === l.from);
       const b = state.nodes.find((n) => n.id === l.to);
       if (!a || !b) continue;
@@ -418,7 +576,7 @@ const Graph = (() => {
       ctx.strokeStyle = PIN_COLOR[pinKind(a, l.fromSock, "out")] || "#e7c07a";
       bezier(ctx, p.x, p.y, q.x, q.y);
     }
-    if (state.wire) {
+    if (state.wire && pinKind(state.wire.node, state.wire.sockId, state.wire.side) !== "exec") {
       ctx.strokeStyle = PIN_COLOR[pinKind(state.wire.node, state.wire.sockId, state.wire.side)] || "#e7c07a";
       bezier(ctx, state.wire.x, state.wire.y, state.wire.mx, state.wire.my);
     }
@@ -433,36 +591,47 @@ const Graph = (() => {
       ctx.strokeRect(x, y, bw, bh);
     }
 
+    layoutStacks();
     for (const n of state.nodes) {
       const def = pinsOf(n);
       layoutNode(n);
       const on = state.picked.includes(n.id) || n.id === state.selected;
-      ctx.fillStyle = "#12141c";
-      ctx.strokeStyle = on ? "#e7c07a" : "#2a2e3a";
-      ctx.lineWidth = on ? 2 : 1;
-      round(ctx, n.x, n.y, n.w, n.h, 8);
-      ctx.fill();
+      const ins = def.inputs || [];
+      const outs = def.outputs || [];
+      const hasInExec = ins.some((s) => (s.kind || "exec") === "exec");
+      const hasOutExec = outs.some((s) => (s.kind || "exec") === "exec");
+      const fill = blockColor(def);
+      ctx.save();
+      if (isCBlock(n)) {
+        puzzleCBlock(ctx, n);
+      } else {
+        puzzleBlock(ctx, n.x, n.y, n.w, n.h, { hat: !hasInExec, notch: hasInExec, bump: hasOutExec });
+      }
+      ctx.fillStyle = fill;
+      ctx.fill("evenodd");
+      ctx.lineWidth = on ? 3 : 1.25;
+      ctx.strokeStyle = on ? "#ffe08a" : "rgba(0,0,0,.35)";
       ctx.stroke();
-      ctx.fillStyle = def.color || "#e7c07a";
-      ctx.fillRect(n.x, n.y, n.w, 22);
-      ctx.fillStyle = "#111";
-      ctx.font = "12px Sora, sans-serif";
-      ctx.fillText((CineHost.nodeLabel && CineHost.nodeLabel(def)) || def.title || n.type, n.x + 10, n.y + 15);
-      ctx.fillStyle = "#8b8373";
-      ctx.font = "10px Sora, sans-serif";
-      for (const s of def.inputs || []) {
+      ctx.fillStyle = "rgba(255,255,255,.18)";
+      ctx.fillRect(n.x + 1, n.y + 1, n.w - 2, 14);
+      ctx.fillStyle = "#fff";
+      ctx.font = "700 13px Sora, Noto Sans SC, sans-serif";
+      ctx.fillText((CineHost.nodeLabel && CineHost.nodeLabel(def)) || def.title || n.type, n.x + 14, n.y + 22);
+      ctx.font = "11px Sora, Noto Sans SC, sans-serif";
+      for (const s of ins) {
         const p = sockPos(n, s.id, "in");
         sock(ctx, p.x, p.y, s.kind || "exec");
-        ctx.fillStyle = "#8b8373";
-        ctx.fillText(s.label || s.id, n.x + 12, p.y + 3);
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.fillText(s.label || s.id, n.x + 16, p.y + 4);
       }
-      for (const s of def.outputs || []) {
+      for (const s of outs) {
         const p = sockPos(n, s.id, "out");
         sock(ctx, p.x, p.y, s.kind || "exec");
         const label = s.label || s.id;
-        ctx.fillStyle = "#8b8373";
-        ctx.fillText(label, n.x + n.w - 12 - ctx.measureText(label).width, p.y + 3);
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.fillText(label, n.x + n.w - 16 - ctx.measureText(label).width, p.y + 4);
       }
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -495,11 +664,91 @@ const Graph = (() => {
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
+  function puzzleCBlock(ctx, n) {
+    const x = n.x, y = n.y, w = n.w, h = n.h, r = 10;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    const hasIn = execPins(n, "in").length > 0;
+    if (!hasIn) {
+      ctx.lineTo(x + 18, y);
+      ctx.quadraticCurveTo(x + 40, y - 16, x + 62, y);
+    } else {
+      ctx.lineTo(x + 18, y);
+      ctx.lineTo(x + 24, y + 8);
+      ctx.lineTo(x + 40, y + 8);
+      ctx.lineTo(x + 46, y);
+    }
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + 46, y + h);
+    ctx.lineTo(x + 40, y + h + 8);
+    ctx.lineTo(x + 24, y + h + 8);
+    ctx.lineTo(x + 18, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    // cut mouths as even-odd holes
+    let my = y + 42;
+    execPins(n, "out").forEach((s) => {
+      my += 20;
+      const ch = childAt(n, s.id);
+      const mh = ch ? Math.max(36, subtreeH(ch)) : 32;
+      ctx.moveTo(x + 22, my);
+      ctx.lineTo(x + w - 16, my);
+      ctx.lineTo(x + w - 16, my + mh);
+      ctx.lineTo(x + 22, my + mh);
+      ctx.closePath();
+      my += mh;
+    });
+  }
+  function puzzleBlock(ctx, x, y, w, h, opt) {
+    opt = opt || {};
+    const r = 10;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    if (opt.hat) {
+      ctx.lineTo(x + 18, y);
+      ctx.quadraticCurveTo(x + 40, y - 16, x + 62, y);
+    } else if (opt.notch) {
+      ctx.lineTo(x + 18, y);
+      ctx.lineTo(x + 24, y + 8);
+      ctx.lineTo(x + 40, y + 8);
+      ctx.lineTo(x + 46, y);
+    }
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    if (opt.bump) {
+      ctx.lineTo(x + 46, y + h);
+      ctx.lineTo(x + 40, y + h + 8);
+      ctx.lineTo(x + 24, y + h + 8);
+      ctx.lineTo(x + 18, y + h);
+    }
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
   function sock(ctx, x, y, kind) {
     ctx.beginPath();
-    ctx.fillStyle = PIN_COLOR[kind || "exec"] || "#e7c07a";
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = PIN_COLOR[kind || "exec"] || "#ffe08a";
+    if ((kind || "exec") === "exec") {
+      ctx.moveTo(x - 6, y - 7);
+      ctx.lineTo(x + 5, y);
+      ctx.lineTo(x - 6, y + 7);
+      ctx.closePath();
+    } else {
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+    }
     ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(0,0,0,.35)";
+    ctx.stroke();
   }
 
   function bind() {
@@ -567,6 +816,15 @@ const Graph = (() => {
           state.picked = [n.id];
         }
         state.selected = n.id;
+        execDescendants(n).forEach((id) => {
+          if (!state.picked.includes(id)) state.picked.push(id);
+        });
+        const incoming = incomingExec(n);
+        if (incoming && !ev.shiftKey) {
+          snapshot();
+          state.links = state.links.filter((l) => l.id !== incoming.id);
+          state.dirty = true;
+        }
         state.drag = { ids: state.picked.slice(), ox: p.x, oy: p.y, origin: state.picked.map((id) => {
           const nd = state.nodes.find((x) => x.id === id);
           return nd ? { id, x: nd.x, y: nd.y } : null;
@@ -692,7 +950,12 @@ const Graph = (() => {
         state.box = null;
         draw();
       }
+      if (state.drag && state.drag.origin && state.selected) {
+        const nd = state.nodes.find((x) => x.id === state.selected);
+        if (nd) trySnap(nd);
+      }
       state.drag = null;
+      draw();
     });
     window.addEventListener("keydown", (ev) => {
       if (document.activeElement && ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
