@@ -10,6 +10,10 @@
   <a href="../README.md"><img src="https://img.shields.io/badge/English-README-7ee0c6?style=for-the-badge" alt="English README" /></a>
 </p>
 
+<p>
+  <img src="https://raw.githubusercontent.com/axioxmedia/CineMaker/refs/heads/main/static/cap.png" alt="APPCap" /></a>
+</p>
+
 </div>
 
 推荐用 **[GitHub 部署器](https://github.com/axioxmedia/github-deployer)** 拉取 Release EXE。
