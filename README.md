@@ -20,6 +20,10 @@ Interactive cine-game editor — node graph, plugins, `.aioassets`, built-in 3D 
   <a href="#faq">FAQ</a>
 </p>
 
+<p>
+  <img src="https://raw.githubusercontent.com/axioxmedia/CineMaker/refs/heads/main/static/cap.png" alt="APPCap" /></a>
+</p>
+
 </div>
 
 > Prefer **[GitHub Deploy Desk](https://github.com/axioxmedia/github-deployer)** to fetch a Release EXE.
