@@ -1,1 +1,1 @@
-window.CINE_BUILD = { version: "0.2.4", build: "20260905.9" };
+window.CINE_BUILD = { version: "0.2.5", build: "20260905.10" };
